@@ -15,3 +15,14 @@ Content-Type: application/json
   "email": "test@example.com",
   "password": "12345678"
 }
+
+### Signout isteği
+
+POST http://localhost:3000/auth/signout
+
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "12345678"
+}

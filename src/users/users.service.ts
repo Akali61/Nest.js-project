@@ -13,13 +13,13 @@ export class UsersService {
     @InjectRepository(Role) private roleRepository: Repository<Role>,
   ) {}
 
-  async createUser(dto: CreateUserDto): Promise<Omit<User, 'password'>> {
-    const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+  async createUser(createUserDto: CreateUserDto): Promise<Omit<User, 'password'>> {
+    const existing = await this.userRepository.findOne({ where: { email: createUserDto.email } });
     if (existing) {
       throw new Error('User already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
     let defaultRole = await this.roleRepository.findOne({ where: { name: 'user' } });
 
@@ -29,7 +29,7 @@ export class UsersService {
     }
 
     const newUser = this.userRepository.create({
-      email: dto.email,
+      email: createUserDto.email,
       password: hashedPassword,
       roles: [defaultRole],
     });
