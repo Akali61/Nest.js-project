@@ -1,22 +1,25 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { User } from './user.entity/user.entity';
-import { Role } from './user.entity/role.entity';
-import { CreateUserDto } from './dto/create-user.dto';
+import { UsersRepository } from '../users/repositories/users.repository';
+import { Role } from '../users/user.entity/role.entity';
+import { Repository } from 'typeorm';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User) private userRepository: Repository<User>,
-    @InjectRepository(Role) private roleRepository: Repository<Role>,
+    private usersRepository: UsersRepository,
+
+    @InjectRepository(Role)
+    private roleRepository: Repository<Role>,
   ) {}
 
-  async createUser(createUserDto: CreateUserDto): Promise<Omit<User, 'password'>> {
-    const existing = await this.userRepository.findOne({ where: { email: createUserDto.email } });
+  async createUser(createUserDto: CreateUserDto) {
+    const existing = await this.usersRepository.findOne({ where: { email: createUserDto.email } });
     if (existing) {
-      throw new Error('User already exists');
+      throw new ConflictException('User already exists');
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
@@ -28,41 +31,68 @@ export class UsersService {
       await this.roleRepository.save(defaultRole);
     }
 
-    const newUser = this.userRepository.create({
+    const newUser = this.usersRepository.create({
       email: createUserDto.email,
       password: hashedPassword,
       roles: [defaultRole],
     });
 
-  const savedUser = await this.userRepository.save(newUser);
+    const savedUser = await this.usersRepository.save(newUser);
 
-  if (Array.isArray(savedUser)) {
-    const user = savedUser[0];
-    const { password, ...rest } = user;
-    return rest;
-  } else {
-    const { password, ...rest } = savedUser;
+    const { password, ...rest } = Array.isArray(savedUser) ? savedUser[0] : savedUser;
+
     return rest;
   }
-  }
 
-  async findByEmail(email: string): Promise<User | any> {
-    return this.userRepository.findOne({
-      where: { email },
-      relations: ['roles'], 
-    });
-  }
-
-  async validateUser(email: string, password: string): Promise<Omit<User, 'password'> | null> {
-    const user = await this.findByEmail(email);
-    if (!user) 
-      return null;
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (isMatch) {
-      const { password, ...rest } = user;
-      return rest;
+  async getUserById(id: number) {
+    const user = await this.usersRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
     }
-    return null;
+    return user;
+  }
+
+  async getAllUsers() {
+    return this.usersRepository.find({ relations: ['roles'] });
+  }
+
+  async updateUser(id: number, updateUserDto: UpdateUserDto) {
+    const user = await this.usersRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    if (updateUserDto.password) {
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+
+    await this.usersRepository.update(id, updateUserDto);
+
+    const updatedUser = await this.usersRepository.findById(id);
+    return updatedUser;
+  }
+
+  async removeUser(id: number) {
+    const user = await this.usersRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    await this.usersRepository.delete(id);
+  }
+
+  async validateUser(email: string, password: string): Promise<Omit<any, 'password'> | null> {
+    const user = await this.usersRepository.findByEmail(email);
+    if (!user) {
+      return null;
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return null;
+    }
+
+    const { password: _, ...result } = user;
+    return result;
   }
 }

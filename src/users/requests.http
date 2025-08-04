@@ -17,7 +17,6 @@ Content-Type: application/json
 }
 
 ### Signout isteği
-
 POST http://localhost:3000/auth/signout
 
 Content-Type: application/json
