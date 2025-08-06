@@ -23,8 +23,8 @@ export class BookService {
   }
 
   async create(createBookDto: CreateBookDto): Promise<Book> {
-    await this.bookRepository.createBook(createBookDto);
-    return this.bookRepository.createBook(book);
+  const book = await this.bookRepository.createBook(createBookDto);
+  return book;
   }
 
   async update(id: number, updateBookDto: UpdateBookDto): Promise<Book> {

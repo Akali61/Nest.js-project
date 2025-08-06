@@ -9,13 +9,14 @@ import { Role } from './src/users/user.entity/role.entity';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 3000,
+      host: '172.17.0.2',
+      port: 5432,
       username: 'postgres',
       password: 'postgres', 
       database: 'mydb',
       entities: [User, Role],
       synchronize: true, 
+      autoLoadEntities: true,
     }),
     AuthModule,
     UsersModule]
